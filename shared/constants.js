@@ -30,10 +30,17 @@ export const MODE = {
   AREA: 'area'
 };
 
-/** Export formats. PDF is reserved for V2 — see README "Roadmap". */
+/** Export formats. */
 export const FORMAT = {
   PNG: 'png',
-  JPG: 'jpg'
+  JPG: 'jpg',
+  PDF: 'pdf'
+};
+
+/** PDF layouts: one tall page, or as many A4 pages as it takes. */
+export const PDF_MODE = {
+  SINGLE: 'single',
+  A4: 'a4'
 };
 
 /** Delay presets, in ms, waited after each scroll before capturing. */
@@ -59,7 +66,8 @@ export const LIMITS = {
 /** Default user settings. Persisted in chrome.storage.local under SETTINGS_KEY. */
 export const DEFAULT_SETTINGS = {
   format: FORMAT.PNG,
-  jpgQuality: 92,
+  jpgQuality: 90,
+  pdfMode: PDF_MODE.SINGLE,
   delay: 'normal',
   filenameTemplate: '{domain}-{date}-{time}',
   hideFixed: true,

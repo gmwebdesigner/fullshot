@@ -1,8 +1,9 @@
-import { APP_NAME, FORMAT, LIMITS } from '../shared/constants.js';
+import { APP_NAME, FORMAT, PDF_MODE, LIMITS } from '../shared/constants.js';
 import { getSettings } from '../shared/storage.js';
 import { getCapture } from '../shared/db.js';
 import { buildFilename, domainOf, formatBytes, formatDateTime } from '../shared/utils.js';
 import { render, footerHeight, drawFooter } from './annotate.js';
+import { buildPdf } from './pdf.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -22,6 +23,7 @@ const state = {
   color: '#ef4444',
   format: FORMAT.PNG,
   quality: 100,
+  pdfMode: PDF_MODE.SINGLE,
   footer: false,
   scale: 1,
   draft: null,
@@ -192,13 +194,12 @@ function viewportLabel() {
 }
 
 /**
- * Compose the final image at full resolution.
- * Returns the original blob untouched when nothing needs re-encoding — that
- * shortcut saves several seconds on a tall PNG.
+ * Draw the screenshot, its annotations and the optional client footer at full
+ * resolution. Returns null when nothing has been added, so callers can use the
+ * untouched original instead of paying for a copy.
  */
-async function compose({ format, quality, footer }) {
-  const plain = !state.annotations.length && !footer && format === FORMAT.PNG;
-  if (plain) return state.sourceBlob;
+function composeCanvas(footer) {
+  if (!state.annotations.length && !footer) return null;
 
   const width = state.image.width;
   const bar = footer ? footerHeight(width) : 0;
@@ -226,19 +227,77 @@ async function compose({ format, quality, footer }) {
     });
   }
 
+  return canvas;
+}
+
+/** Free a canvas's backing store now instead of waiting for the collector. */
+function release(canvas) {
+  if (!canvas) return;
+  canvas.width = 1;
+  canvas.height = 1;
+}
+
+/**
+ * Produce the file to save.
+ * Returns the original blob untouched when nothing needs re-encoding — that
+ * shortcut saves several seconds on a tall PNG.
+ */
+async function compose({ format, quality, footer, pdfMode }) {
+  const canvas = composeCanvas(footer);
+
+  if (format === FORMAT.PDF) {
+    try {
+      // With no annotations and no footer the original bitmap is already the
+      // page content, so a full-size copy of it is pure waste.
+      return await buildPdf(canvas || state.image, {
+        mode: pdfMode,
+        quality,
+        title: state.record.title || domainOf(state.record.url)
+      });
+    } finally {
+      release(canvas);
+    }
+  }
+
+  if (!canvas) {
+    if (format === FORMAT.PNG) return state.sourceBlob;
+    // JPG still has to go through a canvas, even with nothing drawn on top.
+    const plain = bareCanvas();
+    try {
+      return await encode(plain, format, quality);
+    } finally {
+      release(plain);
+    }
+  }
+
+  try {
+    return await encode(canvas, format, quality);
+  } finally {
+    release(canvas);
+  }
+}
+
+/** A plain full-resolution copy of the screenshot, with no extras. */
+function bareCanvas() {
+  const canvas = document.createElement('canvas');
+  canvas.width = state.image.width;
+  canvas.height = state.image.height;
+  const ctx = canvas.getContext('2d', { alpha: false });
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(state.image, 0, 0);
+  return canvas;
+}
+
+function encode(canvas, format, quality) {
   const mime = format === FORMAT.JPG ? 'image/jpeg' : 'image/png';
-  const blob = await new Promise((resolve, reject) => {
+  return new Promise((resolve, reject) => {
     canvas.toBlob(
       (result) => (result ? resolve(result) : reject(new Error('The image could not be encoded.'))),
       mime,
       format === FORMAT.JPG ? quality / 100 : undefined
     );
   });
-
-  // Free the backing store now instead of waiting for the collector.
-  canvas.width = 1;
-  canvas.height = 1;
-  return blob;
 }
 
 function filenameFor(format) {
@@ -246,7 +305,7 @@ function filenameFor(format) {
     url: state.record.url,
     title: state.record.title,
     date: new Date(state.record.createdAt),
-    extension: format === FORMAT.JPG ? 'jpg' : 'png'
+    extension: format
   });
 }
 
@@ -255,6 +314,7 @@ async function download() {
   const blob = await compose({
     format: state.format,
     quality: state.quality,
+    pdfMode: state.pdfMode,
     footer: state.footer
   });
   const url = URL.createObjectURL(blob);
@@ -282,7 +342,7 @@ async function copyToClipboard({ footer }) {
   setStatus('Preparing…');
   try {
     // Clipboard image data must be PNG: no browser accepts image/jpeg here.
-    const blob = await compose({ format: FORMAT.PNG, quality: 100, footer });
+    const blob = await compose({ format: FORMAT.PNG, quality: 100, footer, pdfMode: state.pdfMode });
     const items = { 'image/png': blob };
     if (footer) {
       const summary = [
@@ -311,12 +371,19 @@ for (const button of document.querySelectorAll('.seg[data-format]')) {
       other.classList.toggle('is-active', active);
       other.setAttribute('aria-checked', String(active));
     }
-    $('quality-field').hidden = state.format !== FORMAT.JPG;
+    // Quality drives the JPEG encoder, and PDF pages are JPEG too.
+    $('quality-field').hidden = state.format === FORMAT.PNG;
+    $('pdf-field').hidden = state.format !== FORMAT.PDF;
+    $('copy').disabled = state.format === FORMAT.PDF;
   });
 }
 
 $('quality').addEventListener('change', (event) => {
   state.quality = Number(event.target.value);
+});
+
+$('pdf-mode').addEventListener('change', (event) => {
+  state.pdfMode = event.target.value;
 });
 
 $('client-footer').addEventListener('change', (event) => {
@@ -352,9 +419,10 @@ window.addEventListener('resize', () => {
   state.format = state.settings.format;
   state.quality = state.settings.jpgQuality;
 
-  if (state.format === FORMAT.JPG) {
-    document.querySelector('.seg[data-format="jpg"]').click();
-  }
+  const stored = document.querySelector(`.seg[data-format="${state.format}"]`);
+  if (stored && state.format !== FORMAT.PNG) stored.click();
+  state.pdfMode = state.settings.pdfMode || PDF_MODE.SINGLE;
+  $('pdf-mode').value = state.pdfMode;
   $('quality').value = String(
     [70, 80, 90, 100].includes(state.quality) ? state.quality : 100
   );

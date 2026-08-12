@@ -6,6 +6,26 @@ your machine. No account, no server, no upload, no analytics.
 
 Manifest V3, plain ES2022, zero dependencies, no remote code.
 
+![The result page: preview, annotation tools and export panel](assets/screenshots/result.png)
+
+<table>
+  <tr>
+    <td width="34%"><img src="assets/screenshots/popup.png" alt="The popup in light mode"></td>
+    <td width="34%"><img src="assets/screenshots/popup-dark.png" alt="The popup in dark mode"></td>
+    <td width="32%" valign="top">
+      <img src="assets/screenshots/progress.png" alt="Progress overlay during a capture"><br><br>
+      Light and dark follow the system. The progress panel lives in a Shadow DOM
+      on the page, shows real progress, and hides itself for the instant each
+      section is taken so it never lands in the screenshot.
+    </td>
+  </tr>
+</table>
+
+![The settings page](assets/screenshots/settings.png)
+
+*Every screenshot above was produced by the extension running in Chrome:
+`node test/screenshots.mjs` regenerates all of them.*
+
 ---
 
 ## Install locally
@@ -68,8 +88,15 @@ checkbox, or *Client footer by default* in Settings).
 
 - **PNG** — lossless, the default
 - **JPG** — 70 / 80 / 90 / 100%
+- **PDF** — one page as tall as the screenshot, or as many A4 pages as it takes
 - **Copy image** — PNG to the clipboard
 - **Download** — through `chrome.downloads`, named from your template
+
+PDF pages embed JPEG at the quality you pick, which is why the quality selector
+stays on screen for PDF. A screenshot PDF is one image per page and nothing
+else, so `result/pdf.js` writes those few dozen lines of PDF syntax directly
+rather than pulling in a ~300 KB PDF library that this extension would then have
+to vendor and justify.
 
 Filename template variables: `{domain}`, `{title}`, `{date}`, `{time}`.
 Default `{domain}-{date}-{time}` produces `fullshot-example-com-2026-08-11-1632.png`.
@@ -126,6 +153,7 @@ content/capture.js             the capture loop (the algorithm)
 popup/                         popup UI
 result/result.js               preview, export, clipboard, downloads
 result/annotate.js             annotation model, renderer, client footer
+result/pdf.js                  minimal PDF writer (single page and A4)
 settings/                      options page
 shared/constants.js            message types, limits, defaults, DEBUG flag
 shared/utils.js                filenames, formatting, tab validation, canvas clamp
@@ -137,6 +165,8 @@ test/stitch-probe.html         machine-verifiable page for the geometry test
 test/harness.mjs               shared Chrome + DevTools-protocol plumbing
 test/e2e-stitch.mjs            geometry, result page, annotation, export
 test/e2e-fixed.mjs             sticky and fixed elements on the hostile page
+test/screenshots.mjs           regenerates the README screenshots
+assets/screenshots/            those screenshots
 assets/icons/                  placeholder icons (see below)
 ```
 
@@ -357,7 +387,9 @@ PASS  no duplicated or missing band       bands=[[0,49],[516,40],[4999,51]]
 PASS  sticky header and floating widget each appear once
 PASS  every other row decodes to its true document offset    4910 rows aligned
 PASS  result page renders the capture
-PASS  annotated JPG export downloads                         Saved · 122.1 KB
+PASS  annotated JPG export downloads                         Saved · 121.9 KB
+PASS  PDF export (single) downloads                          Saved · 122.7 KB
+PASS  PDF export (a4) downloads                              Saved · 128.7 KB
 PASS  visible area capture completes
 PASS  visible capture equals one viewport                    {"h":557,"tiles":1}
 ```
@@ -467,9 +499,6 @@ in `buildFilename` in [`shared/utils.js`](shared/utils.js).
 
 Deliberately left out of this version, with the ground already prepared:
 
-- **PDF export** — single page and A4 paginated. The result page already
-  composes at full resolution through one `compose()` function; PDF is another
-  encoder on that output.
 - **Split screenshot** — for pages past the canvas ceiling, emit
   `website-part-01.png`, `-02`, … The capture loop already knows when it was
   clamped and reports it.

@@ -25,13 +25,29 @@
           <select id="format">
             <option value="png">PNG</option>
             <option value="jpg">JPG</option>
+            <option value="pdf">PDF</option>
+          </select>
+        </div>
+
+        <div class="row">
+          <label for="pdfMode">
+            <span class="row-title">PDF layout</span>
+            <span class="muted row-desc">
+              One page as tall as the screenshot, or as many A4 pages as it takes.
+            </span>
+          </label>
+          <select id="pdfMode">
+            <option value="single">Single page</option>
+            <option value="a4">A4 pages</option>
           </select>
         </div>
 
         <div class="row">
           <label for="jpgQuality">
             <span class="row-title">JPG quality</span>
-            <span class="muted row-desc">Lower means smaller files and softer text.</span>
+            <span class="muted row-desc">
+              Lower means smaller files and softer text. PDF pages use it too.
+            </span>
           </label>
           <select id="jpgQuality">
             <option value="70">70%</option>

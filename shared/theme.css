@@ -37,6 +37,11 @@
 
 * { box-sizing: border-box; }
 
+/* The `hidden` attribute only sets `display: none` at user-agent priority, so
+   any class rule with its own `display` silently wins and the element stays on
+   screen. Every conditional panel in this extension is a flex or grid box. */
+[hidden] { display: none !important; }
+
 body {
   margin: 0;
   background: var(--bg);

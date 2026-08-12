@@ -216,6 +216,35 @@ try {
     JSON.stringify(exported)
   );
 
+  // PDF export, both layouts, checked as real files further down.
+  const pdfs = {};
+  for (const [mode, label] of [['single', 'single'], ['a4', 'a4']]) {
+    pdfs[label] = await evaluate(
+      resultClient,
+      `(async () => {
+         document.querySelector('.seg[data-format="pdf"]').click();
+         const select = document.getElementById('pdf-mode');
+         select.value = ${JSON.stringify(mode)};
+         select.dispatchEvent(new Event('change'));
+         document.getElementById('status').textContent = '';
+         document.getElementById('download').click();
+         for (let i = 0; i < 80; i += 1) {
+           await new Promise((done) => setTimeout(done, 250));
+           const status = document.getElementById('status');
+           if (status.textContent && status.textContent !== 'Preparing…') {
+             return { status: status.textContent, tone: status.dataset.tone || '' };
+           }
+         }
+         return { status: 'timeout', tone: 'error' };
+       })()`
+    );
+    check(
+      `PDF export (${label}) downloads`,
+      pdfs[label].status.startsWith('Saved') && pdfs[label].tone !== 'error',
+      JSON.stringify(pdfs[label])
+    );
+  }
+
   const preview = await evaluate(
     resultClient,
     `(() => {
@@ -262,7 +291,7 @@ try {
   check('harness', false, error.message);
 } finally {
   clearTimeout(watchdog);
-  cleanDownloads();
+  cleanDownloads('/tmp/fullshot-exports');
   chrome.kill();
   server.close();
   await sleep(300);

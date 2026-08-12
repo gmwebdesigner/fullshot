@@ -6,6 +6,7 @@ const $ = (id) => document.getElementById(id);
 
 const FIELDS = {
   format: 'value',
+  pdfMode: 'value',
   jpgQuality: 'value',
   delay: 'value',
   filenameTemplate: 'value',
@@ -18,7 +19,13 @@ document.title = `${APP_NAME} — settings`;
 
 function apply(settings) {
   for (const [key, prop] of Object.entries(FIELDS)) {
-    $(key)[prop] = prop === 'checked' ? Boolean(settings[key]) : String(settings[key]);
+    const field = $(key);
+    field[prop] = prop === 'checked' ? Boolean(settings[key]) : String(settings[key]);
+    // A <select> given a value none of its options carry goes blank. Fall back
+    // to the default so the control always shows what is actually in effect.
+    if (field.tagName === 'SELECT' && field.selectedIndex < 0) {
+      field.value = String(DEFAULT_SETTINGS[key]);
+    }
   }
   updatePreview();
 }
@@ -41,7 +48,7 @@ function updatePreview() {
   $('filename-preview').textContent = buildFilename(template, {
     url: 'https://www.example.com/pricing',
     title: 'Pricing — Example',
-    extension: $('format').value === 'jpg' ? 'jpg' : 'png'
+    extension: $('format').value
   });
 }
 

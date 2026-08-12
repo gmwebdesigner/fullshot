@@ -246,13 +246,21 @@ export function reporter() {
   };
 }
 
-/** The export check writes a real file through chrome.downloads; take it back out. */
-export function cleanDownloads() {
+/**
+ * The export checks write real files through chrome.downloads. Copy them
+ * somewhere inspectable, then take them out of the download folder.
+ */
+export function cleanDownloads(keepIn = null) {
   try {
     const downloads = path.join(os.homedir(), 'Downloads');
     for (const name of fs.readdirSync(downloads)) {
-      if (/^fullshot-127-0-0-1-.*\.(jpg|png)$/.test(name)) {
-        fs.rmSync(path.join(downloads, name), { force: true });
+      if (/^fullshot-127-0-0-1-.*\.(jpg|png|pdf)$/.test(name)) {
+        const file = path.join(downloads, name);
+        if (keepIn) {
+          fs.mkdirSync(keepIn, { recursive: true });
+          fs.copyFileSync(file, path.join(keepIn, name));
+        }
+        fs.rmSync(file, { force: true });
       }
     }
   } catch {

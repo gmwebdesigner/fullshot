@@ -54,7 +54,16 @@
           <div class="segmented" role="radiogroup" aria-label="Image format">
             <button class="seg is-active" data-format="png" type="button" role="radio" aria-checked="true">PNG</button>
             <button class="seg" data-format="jpg" type="button" role="radio" aria-checked="false">JPG</button>
+            <button class="seg" data-format="pdf" type="button" role="radio" aria-checked="false">PDF</button>
           </div>
+        </div>
+
+        <div class="field" id="pdf-field" hidden>
+          <label class="field-label" for="pdf-mode">PDF layout</label>
+          <select id="pdf-mode">
+            <option value="single">Single page</option>
+            <option value="a4">A4 pages</option>
+          </select>
         </div>
 
         <div class="field" id="quality-field" hidden>
