@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>FullShot — capture torture test</title>
+    <style>
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        font: 16px/1.6 Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
+        color: #18181b;
+        background: #fff;
+      }
+
+      /* 1. Sticky header — must appear exactly once, at the top. */
+      header {
+        position: sticky;
+        top: 0;
+        z-index: 50;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px 28px;
+        background: rgba(255, 255, 255, 0.86);
+        backdrop-filter: blur(10px);
+        border-bottom: 1px solid #e5e5e7;
+      }
+
+      header strong { letter-spacing: -0.02em; }
+      nav { display: flex; gap: 18px; font-size: 14px; color: #71717a; }
+
+      /* 2. Fixed floating button — must appear exactly once. */
+      .floating {
+        position: fixed;
+        right: 24px;
+        bottom: 24px;
+        z-index: 60;
+        padding: 13px 20px;
+        border-radius: 999px;
+        background: #16a34a;
+        color: #fff;
+        font-weight: 600;
+        box-shadow: 0 10px 30px rgba(22, 163, 74, 0.35);
+      }
+
+      /* 3. Cookie banner — fixed, must appear exactly once. */
+      .cookies {
+        position: fixed;
+        left: 24px;
+        bottom: 24px;
+        z-index: 60;
+        max-width: 380px;
+        padding: 16px 18px;
+        border-radius: 14px;
+        background: #18181b;
+        color: #fafafa;
+        font-size: 13px;
+        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.28);
+      }
+
+      .cookies button {
+        margin-top: 10px;
+        padding: 6px 12px;
+        font: inherit;
+        color: #18181b;
+        background: #fafafa;
+        border: 0;
+        border-radius: 7px;
+        cursor: pointer;
+      }
+
+      /* 4. A fixed full-screen backdrop — FullShot deliberately keeps this one. */
+      .backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: -1;
+        background: radial-gradient(1200px 700px at 70% 10%, #eef2ff, #fff 60%);
+      }
+
+      section {
+        padding: 80px 28px;
+        border-bottom: 1px solid #e5e5e7;
+      }
+
+      .wide { max-width: 900px; margin: 0 auto; }
+
+      h1 { font-size: 44px; line-height: 1.1; letter-spacing: -0.03em; margin: 0 0 16px; }
+      h2 { font-size: 26px; letter-spacing: -0.02em; margin: 0 0 12px; }
+      p { color: #3f3f46; max-width: 62ch; }
+
+      .tall { min-height: 2400px; }
+      .gradient { background: linear-gradient(160deg, #0ea5e9, #6366f1 50%, #ec4899); color: #fff; }
+      .gradient p { color: rgba(255, 255, 255, 0.85); }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 16px;
+        margin-top: 28px;
+      }
+
+      .card {
+        padding: 20px;
+        border-radius: 14px;
+        background: #f7f7f8;
+        border: 1px solid #e5e5e7;
+      }
+
+      img { display: block; width: 100%; border-radius: 12px; background: #e4e4e7; }
+
+      iframe { width: 100%; height: 260px; border: 1px solid #e5e5e7; border-radius: 12px; }
+
+      /* 5. Something animating the whole time. */
+      .pulse {
+        width: 120px;
+        height: 120px;
+        border-radius: 30px;
+        background: #18181b;
+        animation: pulse 1.6s ease-in-out infinite alternate;
+      }
+
+      @keyframes pulse {
+        from { transform: scale(0.85) rotate(-6deg); opacity: 0.6; }
+        to { transform: scale(1.05) rotate(6deg); opacity: 1; }
+      }
+
+      /* 6. Sections that only appear once scrolled into view. */
+      .reveal { opacity: 0; transform: translateY(24px); transition: all 0.4s ease; }
+      .reveal.in { opacity: 1; transform: none; }
+
+      /* 7. An inner scroll container, to prove the outer capture ignores it. */
+      .inner-scroll {
+        max-height: 220px;
+        overflow: auto;
+        padding: 14px;
+        border: 1px solid #e5e5e7;
+        border-radius: 12px;
+        background: #fff;
+      }
+
+      footer { padding: 60px 28px; background: #18181b; color: #a1a1aa; }
+      footer strong { color: #fafafa; }
+    </style>
+  </head>
+  <body>
+    <div class="backdrop"></div>
+
+    <header>
+      <strong>Sticky header</strong>
+      <nav><span>Product</span><span>Pricing</span><span>Docs</span><span>Contact</span></nav>
+    </header>
+
+    <div class="floating">Chat with us</div>
+
+    <div class="cookies" id="cookies">
+      We use cookies to make this test page feel authentically annoying.
+      <br />
+      <button type="button" id="cookie-accept">Accept</button>
+    </div>
+
+    <section class="wide">
+      <h1>FullShot capture torture test</h1>
+      <p>
+        Scroll to the bottom, then capture the full page. In a correct capture the sticky header
+        appears once at the very top, the green chat bubble and the cookie banner appear once each,
+        no section is duplicated, and the footer is complete. The soft background gradient is a
+        fixed full-screen layer and is intentionally kept behind every section.
+      </p>
+      <div class="grid">
+        <div class="card"><strong>Sticky header</strong><br />once, at the top</div>
+        <div class="card"><strong>Fixed button</strong><br />once</div>
+        <div class="card"><strong>Cookie bar</strong><br />once</div>
+        <div class="card"><strong>Footer</strong><br />complete, not cut</div>
+      </div>
+    </section>
+
+    <section class="gradient">
+      <div class="wide">
+        <h2>Gradients and large type</h2>
+        <p>Banding here means the stitch is fine but the JPG quality is too low. Use PNG to check.</p>
+        <div class="pulse" style="background: rgba(255,255,255,.9); margin-top: 24px"></div>
+      </div>
+    </section>
+
+    <section class="wide">
+      <h2>Lazy images</h2>
+      <p>These use <code>loading="lazy"</code> and only decode when they approach the viewport.</p>
+      <div class="grid" id="lazy-grid"></div>
+    </section>
+
+    <section class="wide tall">
+      <h2>A very tall section</h2>
+      <p>
+        This block is 2400 pixels tall on its own, so it spans several viewport captures with no
+        landmarks in between. Any stitching error shows up here as a repeated or missing band.
+      </p>
+      <div style="margin-top: 40px" id="ruler"></div>
+    </section>
+
+    <section class="wide">
+      <h2>Revealed on scroll</h2>
+      <div class="grid">
+        <div class="card reveal">Appears when scrolled into view (1)</div>
+        <div class="card reveal">Appears when scrolled into view (2)</div>
+        <div class="card reveal">Appears when scrolled into view (3)</div>
+      </div>
+    </section>
+
+    <section class="wide">
+      <h2>Inner scroll container</h2>
+      <p>The page scroll must be used, not this one.</p>
+      <div class="inner-scroll">
+        <p>Line 1 — scroll me, the capture should ignore this container entirely.</p>
+        <p>Line 2</p><p>Line 3</p><p>Line 4</p><p>Line 5</p><p>Line 6</p><p>Line 7</p>
+      </div>
+    </section>
+
+    <section class="wide">
+      <h2>Same-origin iframe</h2>
+      <p>Iframes are captured as pixels, exactly as the compositor renders them.</p>
+      <iframe title="Nested document" src="data:text/html,<body style='font:16px system-ui;padding:24px;background:%23fef3c7'><h3>I am an iframe</h3><p>My content is captured as part of the page image.</p></body>"></iframe>
+    </section>
+
+    <footer>
+      <div class="wide">
+        <strong>End of page</strong>
+        <p style="color: #a1a1aa">
+          If you can read this line in the screenshot, the last viewport was cropped correctly and
+          nothing was duplicated above it.
+        </p>
+      </div>
+    </footer>
+
+    <script src="test-page.js"></script>
+  </body>
+</html>

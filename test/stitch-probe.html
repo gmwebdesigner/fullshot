@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>FullShot — stitch probe</title>
+    <style>
+      /* Machine-readable capture test.
+         The left strip encodes its own Y coordinate in every row's colour, so a
+         stitched screenshot can be decoded row by row: a duplicated band decodes
+         to the wrong Y, a missing band skips values. See test/README in the
+         project README ("Verifying the algorithm"). */
+      /* Regression guard: MDN and most documentation themes set this, and it
+         animates every programmatic scroll unless the capture forces
+         `behavior: 'instant'`. Without the guard, tiles land mid-animation. */
+      html { scroll-behavior: smooth; }
+      html, body { margin: 0; padding: 0; background: #fff; }
+
+      #probe {
+        position: absolute;
+        top: 0;
+        left: 0;
+        image-rendering: pixelated;
+      }
+
+      header {
+        position: sticky;
+        top: 0;
+        height: 50px;
+        background: #18181b;
+        color: #fafafa;
+        font: 14px/50px system-ui;
+        padding-left: 70px;
+        z-index: 10;
+      }
+
+      .floating {
+        position: fixed;
+        left: 0;
+        bottom: 0;
+        width: 60px;
+        height: 40px;
+        background: #16a34a;
+        z-index: 20;
+      }
+
+      .filler { padding: 0 0 0 80px; font: 14px/1.6 system-ui; color: #52525b; }
+    </style>
+  </head>
+  <body>
+    <canvas id="probe" width="60"></canvas>
+    <header>sticky header — must appear once</header>
+    <div class="floating"></div>
+    <div class="filler" id="filler"></div>
+    <script src="stitch-probe.js"></script>
+  </body>
+</html>
