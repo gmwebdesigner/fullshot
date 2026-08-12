@@ -1,3 +1,5 @@
+<img src="assets/icons/icon-128.png" width="72" height="72" align="right" alt="">
+
 # FullShot
 
 Full-page screenshots for Chrome. Scrolls the page, captures every section,
@@ -167,7 +169,7 @@ test/e2e-stitch.mjs            geometry, result page, annotation, export
 test/e2e-fixed.mjs             sticky and fixed elements on the hostile page
 test/screenshots.mjs           regenerates the README screenshots
 assets/screenshots/            those screenshots
-assets/icons/                  placeholder icons (see below)
+assets/icons/icon.svg          master artwork; the PNGs are rasterised from it
 ```
 
 ---
@@ -468,22 +470,28 @@ zip -r ../fullshot-1.0.0.zip . -x '*.DS_Store' 'test/*' '*.zip'
 
 Before submitting to the Chrome Web Store:
 
-1. Replace the placeholder icons (see below).
-2. Confirm `DEBUG = false`.
-3. Bump `version` in `manifest.json`.
-4. Exclude `test/`, as above.
-5. In the listing, justify each permission with the table in this README —
+1. Confirm `DEBUG = false`.
+2. Bump `version` in `manifest.json`.
+3. Exclude `test/`, as above.
+4. In the listing, justify each permission with the table in this README —
    `activeTab` plus `scripting` is a straightforward story, which is exactly why
    there is no `host_permissions`.
-6. Screenshots: 1280×800 or 640×400. State plainly in the description that no
-   data leaves the device.
+5. Store screenshots: 1280×800 or 640×400. State plainly in the description that
+   no data leaves the device.
 
 ### Icons
 
-`assets/icons/` contains **placeholders**: a dark rounded square with white
-capture brackets, generated as flat PNGs at 16, 32, 48 and 128 px. They are
-legible and consistent but they are not a brand. Replace all four before
-publishing.
+The master is [`assets/icons/icon.svg`](assets/icons/icon.svg); the four PNGs
+the manifest declares are rasterised from it by `node test/icons.mjs`, which
+also drops a contact sheet in `/tmp` showing every size on both a light and a
+dark toolbar.
+
+The mark is a page that starts at the top edge of the tile and runs off the
+bottom of it — top edge present, bottom edge absent. That asymmetry is the whole
+idea (there is more page than fits the frame) and is what keeps it from reading
+as the usual save-a-file icon. Every shape in it is sized to survive 16 px,
+which is where a toolbar icon actually lives; nothing in the artwork depends on
+detail that disappears there.
 
 ### Renaming
 

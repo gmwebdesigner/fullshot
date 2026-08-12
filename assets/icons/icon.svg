@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128" role="img" aria-label="FullShot">
+  <!--
+    FullShot mark. The page starts at the top edge of the tile and runs off the
+    bottom of it: top edge present, bottom edge absent. That asymmetry is what
+    says "there is more page than fits the frame", and it is what keeps this
+    from reading as the usual save-a-file icon. The arrow is the capture.
+
+    Master artwork — assets/icons/icon-{16,32,48,128}.png are rasterised from
+    this file by `node test/icons.mjs`. Everything is a solid shape at a size
+    that survives 16px; there is no detail here that dies in the toolbar.
+  -->
+  <defs>
+    <clipPath id="tile"><rect width="128" height="128" rx="30"/></clipPath>
+  </defs>
+  <rect width="128" height="128" rx="30" fill="#18181b"/>
+  <g clip-path="url(#tile)">
+    <rect x="27" y="17" width="74" height="127" rx="13" fill="#fafafa"/>
+    <path d="M64 40v37M48 63l16 16 16-16" stroke="#18181b" stroke-width="12.5"
+          stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  </g>
+</svg>
