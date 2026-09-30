@@ -164,6 +164,7 @@ shared/db.js                   IndexedDB handoff + pruning
 shared/theme.css               design tokens, light and dark
 test/test-page.html            hostile page: sticky header, fixed widgets, lazy media
 test/stitch-probe.html         machine-verifiable page for the geometry test
+test/unit.mjs                  self-check for the pure helpers (no browser)
 test/harness.mjs               shared Chrome + DevTools-protocol plumbing
 test/e2e-stitch.mjs            geometry, result page, annotation, export
 test/e2e-fixed.mjs             sticky and fixed elements on the hostile page
@@ -236,6 +237,16 @@ Every scroll uses `behavior: 'instant'`, never `'auto'` and never a plain
 CSS wins over both alternatives, and every tile would then be captured part-way
 through an animation. On the probe page, the difference is 4 910 correctly
 aligned rows versus 561.
+
+### The tab has to stay in front
+
+`captureVisibleTab` photographs whichever tab is active in the window, not the
+tab that asked. Every tile therefore checks first that the session's tab is
+still the frontmost one, and the capture stops with a plain message if it is
+not. Without that check, switching tab mid-run would stitch pixels from a page
+the extension was never granted into the image, with nothing in the result to
+say so. Switching to another *window* is fine: the tab is still frontmost in
+its own window, which is what the API reads.
 
 ### Fixed and sticky elements
 
@@ -364,14 +375,25 @@ Both suites launch real Chrome with the unpacked extension, capture a page, and
 assert against the actual pixels of the stitched image.
 
 ```bash
-npx @puppeteer/browsers install chrome@stable --path /tmp/cft
+node test/unit.mjs         # pure helpers, no browser, one second
+
+npx @puppeteer/browsers install chrome@stable --path ~/.cache/fullshot-chrome
 node test/e2e-stitch.mjs   # geometry, result page, annotation, export
 node test/e2e-fixed.mjs    # sticky and fixed elements
 ```
 
-Branded Google Chrome has refused `--load-extension` since version 137, so they
-need Chrome for Testing; point elsewhere with `CHROME=/path/to/binary`, and add
-`HEADED=1` to watch it work.
+Branded Google Chrome has refused `--load-extension` since version 137, so the
+browser suites need Chrome for Testing. The harness finds the newest install
+under `~/.cache/fullshot-chrome` or `/tmp/cft` by itself; point it elsewhere
+with `CHROME=/path/to/binary`, and add `HEADED=1` to watch it work.
+
+**`unit.mjs` — the helpers underneath.** File names, tab eligibility, the
+canvas ceiling, and the validation of values read back from storage. These are
+the places where a wrong answer is silent rather than visible, so they are
+checked directly: that a page title of `../../../../Desktop/owned` cannot
+escape the download folder, that `?file=x.pdf` on an HTML page is still
+capturable, and that a format string the code does not recognise never reaches
+a CSS selector or a file extension.
 
 **`e2e-stitch.mjs` — geometry.** `test/stitch-probe.html` renders a strip in
 which every row's colour encodes its own Y coordinate, so decoding that strip
@@ -394,6 +416,8 @@ PASS  PDF export (single) downloads                          Saved · 122.7 KB
 PASS  PDF export (a4) downloads                              Saved · 128.7 KB
 PASS  visible area capture completes
 PASS  visible capture equals one viewport                    {"h":557,"tiles":1}
+PASS  switching tab mid-capture aborts the run
+PASS  the aborted run leaves no session behind
 ```
 
 Only three regions may legitimately fail to decode: the 50 px sticky header at

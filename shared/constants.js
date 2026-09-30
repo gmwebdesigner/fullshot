@@ -43,12 +43,9 @@ export const PDF_MODE = {
   A4: 'a4'
 };
 
-/** Delay presets, in ms, waited after each scroll before capturing. */
-export const DELAY_PRESETS = {
-  fast: 120,
-  normal: 250,
-  safe: 550
-};
+// Capture delay presets (fast / normal / safe) live in content/capture.js.
+// A content script cannot import this module, and a copy here that nothing
+// reads is a second source of truth waiting to drift out of step.
 
 /** Hard safety limits — a page with infinite scroll must not loop forever. */
 export const LIMITS = {

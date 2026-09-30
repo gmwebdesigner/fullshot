@@ -86,10 +86,30 @@ export function tabBlockReason(tab) {
   if (BLOCKED_HOSTS.some((host) => url.includes(host))) {
     return "The Chrome Web Store can't be captured — Chrome blocks extensions on this site.";
   }
-  if (/\.pdf($|[?#])/i.test(url)) {
+  // Only the path decides: `?file=x.pdf` on an ordinary HTML page used to trip
+  // this and refuse a perfectly capturable page.
+  let pathname = '';
+  try {
+    pathname = new URL(url).pathname;
+  } catch {
+    pathname = url;
+  }
+  if (/\.pdf$/i.test(pathname)) {
     return "Chrome's built-in PDF viewer can't be captured. Open the PDF in a normal page or use the browser's own print-to-PDF.";
   }
   return null;
+}
+
+/**
+ * Keep a stored value only when the code still knows what it means.
+ *
+ * Settings live in chrome.storage, survive upgrades and can be edited by hand,
+ * so every value read back from them is untrusted input: an unknown format
+ * reaches a CSS selector and a file extension.
+ */
+export function oneOf(value, allowed, fallback) {
+  const list = Array.isArray(allowed) ? allowed : Object.values(allowed);
+  return list.includes(value) ? value : fallback;
 }
 
 /**

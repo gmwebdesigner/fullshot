@@ -42,8 +42,27 @@ function pdfDate(date) {
   );
 }
 
-/** Escape the few characters that are special inside a PDF literal string. */
-const pdfString = (value) => String(value).replace(/([\\()])/g, '\\$1').slice(0, 400);
+/**
+ * A PDF text string, as hex-encoded UTF-16BE with a byte order mark.
+ *
+ * The obvious `(literal)` form is PDFDocEncoding, so any page title with an
+ * accent — which is most of them outside English — lands in the document
+ * properties as mojibake. This form is the only one that carries them intact.
+ */
+function pdfText(value) {
+  let hex = 'FEFF';
+  for (const character of String(value ?? '').slice(0, 300)) {
+    const code = character.codePointAt(0);
+    if (code > 0xffff) {
+      const rest = code - 0x10000;
+      hex += (0xd800 + (rest >> 10)).toString(16).padStart(4, '0');
+      hex += (0xdc00 + (rest & 0x3ff)).toString(16).padStart(4, '0');
+    } else {
+      hex += code.toString(16).padStart(4, '0');
+    }
+  }
+  return `<${hex.toUpperCase()}>`;
+}
 
 /**
  * Cut `source` into horizontal slices and JPEG-encode each one.
@@ -145,7 +164,7 @@ export async function buildPdf(source, { mode = 'single', quality = 92, title = 
   push(
     bytes(
       `<< /Producer (FullShot) /Creator (FullShot)` +
-        `${title ? ` /Title (${pdfString(title)})` : ''}` +
+        `${title ? ` /Title ${pdfText(title)}` : ''}` +
         ` /CreationDate (${pdfDate(new Date())}) >>\n`
     )
   );

@@ -97,7 +97,6 @@
       totalHeight,
       scrollTop: isDocument ? window.scrollY : element.scrollTop,
       scrollLeft: isDocument ? window.scrollX : element.scrollLeft,
-      maxScroll: Math.max(0, totalHeight - contentHeight),
       dpr: window.devicePixelRatio || 1
     };
   }

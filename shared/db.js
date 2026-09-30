@@ -27,14 +27,18 @@ function tx(db, mode, run) {
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(DB_STORE, mode);
     const store = transaction.objectStore(DB_STORE);
-    let result;
+    let request;
     try {
-      result = run(store);
+      request = run(store);
     } catch (error) {
       reject(error);
       return;
     }
-    transaction.oncomplete = () => resolve(result && result.result !== undefined ? result.result : result);
+    // A miss leaves `request.result` undefined, and that is what the caller
+    // must get. Falling back to the IDBRequest itself made "no such capture"
+    // arrive as a truthy object, so the result page sailed past its own
+    // "this capture is gone" branch and died on the next line instead.
+    transaction.oncomplete = () => resolve(request ? request.result : undefined);
     transaction.onerror = () => reject(transaction.error);
     transaction.onabort = () => reject(transaction.error);
   });

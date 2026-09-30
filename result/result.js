@@ -1,11 +1,14 @@
 import { APP_NAME, FORMAT, PDF_MODE, LIMITS } from '../shared/constants.js';
 import { getSettings } from '../shared/storage.js';
 import { getCapture } from '../shared/db.js';
-import { buildFilename, domainOf, formatBytes, formatDateTime } from '../shared/utils.js';
+import { buildFilename, domainOf, formatBytes, formatDateTime, oneOf } from '../shared/utils.js';
 import { render, footerHeight, drawFooter } from './annotate.js';
 import { buildPdf } from './pdf.js';
 
 const $ = (id) => document.getElementById(id);
+
+/** The quality steps the selector offers. */
+const QUALITIES = [70, 80, 90, 100];
 
 const previewCanvas = $('preview');
 const ctx = previewCanvas.getContext('2d');
@@ -416,16 +419,18 @@ window.addEventListener('resize', () => {
 (async () => {
   const id = new URLSearchParams(location.search).get('id');
   state.settings = await getSettings();
-  state.format = state.settings.format;
-  state.quality = state.settings.jpgQuality;
+
+  // Settings are untrusted input: they outlive upgrades and can be edited by
+  // hand. An unknown format would reach both a CSS selector, where it throws
+  // and takes the whole page down, and the saved file's extension.
+  state.format = oneOf(state.settings.format, FORMAT, FORMAT.PNG);
+  state.pdfMode = oneOf(state.settings.pdfMode, PDF_MODE, PDF_MODE.SINGLE);
+  state.quality = oneOf(Number(state.settings.jpgQuality), QUALITIES, 90);
 
   const stored = document.querySelector(`.seg[data-format="${state.format}"]`);
   if (stored && state.format !== FORMAT.PNG) stored.click();
-  state.pdfMode = state.settings.pdfMode || PDF_MODE.SINGLE;
   $('pdf-mode').value = state.pdfMode;
-  $('quality').value = String(
-    [70, 80, 90, 100].includes(state.quality) ? state.quality : 100
-  );
+  $('quality').value = String(state.quality);
   state.footer = Boolean(state.settings.clientFooter);
   $('client-footer').checked = state.footer;
 

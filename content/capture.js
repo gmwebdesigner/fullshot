@@ -46,18 +46,26 @@
   /** Send to the worker and turn its `{ok:false,error}` shape into a throw. */
   async function ask(message) {
     let response;
+    let timer;
     try {
       response = await Promise.race([
         chrome.runtime.sendMessage(message),
         // If the worker is torn down mid-call the promise above never settles,
         // and the whole capture would hang with the overlay stuck on screen.
-        new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('The extension stopped responding.')), STEP_TIMEOUT)
-        )
+        new Promise((_, reject) => {
+          timer = setTimeout(
+            () => reject(new Error('The extension stopped responding.')),
+            STEP_TIMEOUT
+          );
+        })
       ]);
     } catch (error) {
       if (error?.message === 'The extension stopped responding.') throw error;
       throw new Error('FullShot lost contact with the extension. Please try again.');
+    } finally {
+      // One capture can send a hundred of these; leaving each timer armed for
+      // half a minute keeps a hundred dead closures alive for no reason.
+      clearTimeout(timer);
     }
     if (!response) throw new Error('The capture was interrupted.');
     if (response.ok === false) throw new Error(response.error || 'The capture failed.');
@@ -71,30 +79,36 @@
     FS.running = true;
     debugEnabled = Boolean(debugFlag);
 
-    const { utils, fixedElements, progressUI, selectArea } = FS;
-    const scroller = utils.findScroller();
-    const start = utils.metrics(scroller);
-    const originalScroll = { top: start.scrollTop, left: start.scrollLeft };
-    const delay = DELAY_PRESETS[settings.delay] ?? DELAY_PRESETS.normal;
-
     let ui = null;
     let fixedEntries = null;
+    let scroller = null;
+    let originalScroll = null;
     let cancelled = false;
     FS.cancel = () => {
       cancelled = true;
       ui?.setTitle('Cancelling…');
     };
 
-    const viewport = { w: start.viewportWidth, h: start.viewportHeight };
-    const meta = {
-      viewport: {
-        w: start.contentWidth,
-        h: start.contentHeight,
-        dpr: start.dpr
-      }
-    };
-
     try {
+      // Everything, including the very first measurement, belongs inside the
+      // try. A throw above it would skip the `finally`, so `FS.running` would
+      // stay true and lock this page out of every later capture — and the
+      // worker, which is awaiting this function's reply, would hang with it.
+      const { utils, fixedElements, progressUI, selectArea } = FS;
+      scroller = utils.findScroller();
+      const start = utils.metrics(scroller);
+      originalScroll = { top: start.scrollTop, left: start.scrollLeft };
+      const delay = DELAY_PRESETS[settings.delay] ?? DELAY_PRESETS.normal;
+
+      const viewport = { w: start.viewportWidth, h: start.viewportHeight };
+      const meta = {
+        viewport: {
+          w: start.contentWidth,
+          h: start.contentHeight,
+          dpr: start.dpr
+        }
+      };
+
       /* ---- Visible area: one tile, nothing to scroll or hide ------------- */
       if (mode === 'visible') {
         await ask({
@@ -248,8 +262,10 @@
     } finally {
       // Runs on success, on error, on cancel. The page must always be left
       // exactly as it was found.
-      FS.fixedElements.restore(fixedEntries);
-      FS.utils.scrollTo(scroller, originalScroll.top, originalScroll.left);
+      FS.fixedElements?.restore(fixedEntries);
+      if (scroller && originalScroll) {
+        FS.utils.scrollTo(scroller, originalScroll.top, originalScroll.left);
+      }
       ui?.destroy();
       FS.running = false;
       FS.cancel = null;
@@ -258,7 +274,11 @@
 
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message?.type !== MSG.CAPTURE_BEGIN) return undefined;
-    run(message).then(sendResponse);
+    // Never leave the port open: an unanswered sendMessage hangs the worker
+    // and the session it is holding for this tab.
+    run(message).then(sendResponse, (error) =>
+      sendResponse({ error: String(error?.message || error) })
+    );
     return true;
   });
 })();

@@ -14,21 +14,46 @@ import { fileURLToPath } from 'node:url';
 export const TEST_DIR = path.dirname(fileURLToPath(import.meta.url));
 export const EXT_SRC = path.dirname(TEST_DIR);
 
-// Branded Google Chrome refuses --load-extension since v137, so this needs
-// Chrome for Testing:
-//   npx @puppeteer/browsers install chrome@stable --path /tmp/cft
-// Override with CHROME=/path/to/binary.
-export const CHROME =
-  process.env.CHROME ||
-  '/tmp/cft/chrome/mac_arm-151.0.7922.77/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing';
+// Branded Google Chrome has refused --load-extension since v137, so the suites
+// need Chrome for Testing:
+//   npx @puppeteer/browsers install chrome@stable --path ~/.cache/fullshot-chrome
+// Override the binary with CHROME=/path/to/chrome.
+const INSTALL_ROOTS = [path.join(os.homedir(), '.cache/fullshot-chrome'), '/tmp/cft'];
+
+/** Locate the installed binary without hard-coding a version number. */
+function findChrome() {
+  if (process.env.CHROME) return process.env.CHROME;
+  for (const root of INSTALL_ROOTS) {
+    const builds = path.join(root, 'chrome');
+    let versions = [];
+    try {
+      versions = fs.readdirSync(builds).sort().reverse();
+    } catch {
+      continue; // this root is not installed
+    }
+    for (const version of versions) {
+      const candidates = [
+        'chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing',
+        'chrome-mac-x64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing',
+        'chrome-linux64/chrome'
+      ].map((tail) => path.join(builds, version, tail));
+      const found = candidates.find((file) => fs.existsSync(file));
+      if (found) return found;
+    }
+  }
+  return path.join(INSTALL_ROOTS[0], 'chrome');
+}
+
+export const CHROME = findChrome();
 
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 export function requireChrome() {
   if (fs.existsSync(CHROME)) return;
   console.error(
-    `Chrome for Testing not found at:\n  ${CHROME}\n` +
-      'Install it with: npx @puppeteer/browsers install chrome@stable --path /tmp/cft'
+    `Chrome for Testing not found under:\n  ${INSTALL_ROOTS.join('\n  ')}\n` +
+      'Install it with: npx @puppeteer/browsers install chrome@stable ' +
+      '--path ~/.cache/fullshot-chrome'
   );
   process.exit(1);
 }

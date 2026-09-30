@@ -284,6 +284,43 @@ try {
     JSON.stringify(visibleSize)
   );
 
+  /* ---- switching tab mid-capture must abort, not photograph the new tab -- */
+
+  // captureVisibleTab reads whichever tab is active in the window. If the user
+  // switches away, every remaining tile would come from a page the extension
+  // was never granted, stitched in without a trace.
+  await evaluate(
+    worker,
+    `(async () => {
+       const [t] = await chrome.tabs.query({ url: 'http://127.0.0.1:${HTTP_PORT}/*' });
+       await chrome.tabs.update(t.id, { active: true });
+       await chrome.windows.update(t.windowId, { focused: true });
+     })()`
+  );
+  await sleep(400);
+  await evaluate(
+    worker,
+    `(() => {
+       globalThis.__run = fullshot
+         .startCapture('full')
+         .then(() => ({ ok: true }), (e) => ({ ok: false, error: String(e?.message || e) }));
+       return 'started';
+     })()`
+  );
+  await sleep(900); // a few tiles in
+  await evaluate(worker, `chrome.tabs.create({ url: 'about:blank', active: true })`);
+  const stolen = await evaluate(worker, 'globalThis.__run');
+  check(
+    'switching tab mid-capture aborts the run',
+    stolen?.ok === false && /active/i.test(stolen.error || ''),
+    JSON.stringify(stolen)
+  );
+  check(
+    'the aborted run leaves no session behind',
+    (await evaluate(worker, 'fullshot.sessions.size')) === 0,
+    `sessions=${await evaluate(worker, 'fullshot.sessions.size')}`
+  );
+
   worker.close();
   page.close();
 } catch (error) {

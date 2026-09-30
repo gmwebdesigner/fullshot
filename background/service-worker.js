@@ -45,8 +45,7 @@ function createSession(tab, mode) {
     scaleY: 1,
     tiles: 0,
     startedAt: Date.now(),
-    clamped: false,
-    cancelled: false
+    clamped: false
   };
   sessions.set(tab.id, session);
   return session;
@@ -69,12 +68,12 @@ function disposeSession(tabId) {
 // The page went away mid-capture: drop the canvas, nothing to restore remotely.
 chrome.tabs.onRemoved.addListener((tabId) => disposeSession(tabId));
 chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
-  if (changeInfo.status === 'loading' && sessions.has(tabId)) {
-    const session = sessions.get(tabId);
-    session.cancelled = true;
-    disposeSession(tabId);
-  }
+  // Navigating away takes the content script with it; the canvas is orphaned.
+  if (changeInfo.status === 'loading') disposeSession(tabId);
 });
+
+// A capture only ever outlives the browser session as dead weight in IndexedDB.
+chrome.runtime.onStartup.addListener(() => pruneCaptures(0).catch(() => {}));
 
 /* -------------------------------------------------------------------------- */
 /* Capture primitives                                                         */
@@ -106,6 +105,25 @@ async function dataUrlToBitmap(dataUrl) {
 }
 
 /**
+ * captureVisibleTab photographs whichever tab is active in the window — not
+ * the tab that asked. If the user switches tab mid-capture, the remaining
+ * tiles would be pixels from a page FullShot was never granted access to, and
+ * they would be stitched into the image without a trace. Refuse instead.
+ *
+ * Switching to another *window* is fine: our tab is still the active one in
+ * its own window, which is what captureVisibleTab reads.
+ */
+async function assertStillFrontmost(session) {
+  const tab = await chrome.tabs.get(session.tabId).catch(() => null);
+  if (!tab || !tab.active || tab.windowId !== session.windowId) {
+    throw new Error(
+      'The tab stopped being the active one, so the capture was stopped. ' +
+        'Leave the tab in front while FullShot works.'
+    );
+  }
+}
+
+/**
  * Paint one tile.
  *
  * @param session          live session
@@ -117,6 +135,7 @@ async function dataUrlToBitmap(dataUrl) {
 async function paintTile(session, payload) {
   const { viewport, canvas: canvasSize, frame, dest } = payload;
 
+  await assertStillFrontmost(session);
   const dataUrl = await captureVisible(session.windowId);
   const bitmap = await dataUrlToBitmap(dataUrl);
 
@@ -256,13 +275,22 @@ export async function startCapture(mode) {
 
   const session = createSession(tab, mode);
   try {
-    const result = await chrome.tabs.sendMessage(tab.id, {
-      type: MSG.CAPTURE_BEGIN,
-      mode,
-      settings,
-      limits: LIMITS,
-      debug: DEBUG
-    });
+    // The page drives the whole run, so this await lasts as long as the
+    // capture does. It still needs a ceiling: a content script that dies
+    // between "I'll answer later" and answering leaves this pending forever,
+    // and the session would block every future capture of that tab.
+    const result = await Promise.race([
+      chrome.tabs.sendMessage(tab.id, {
+        type: MSG.CAPTURE_BEGIN,
+        mode,
+        settings,
+        limits: LIMITS,
+        debug: DEBUG
+      }),
+      sleep(LIMITS.MAX_CAPTURE_DURATION + 30000).then(() => {
+        throw new Error('The page stopped responding during the capture.');
+      })
+    ]);
     if (!result) throw new Error('The page stopped responding during the capture.');
     if (result.error) throw new Error(result.error);
     return result;
@@ -283,8 +311,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     try {
       switch (message?.type) {
         case MSG.CAPTURE_START: {
-          const result = await startCapture(message.mode || MODE.FULL);
-          sendResponse(result);
+          // Only the popup, the options page or a keyboard command may start a
+          // capture. A content script has a `sender.tab`, and must never be
+          // able to make the extension photograph whatever tab is in front.
+          if (sender.tab) throw new Error('Unknown message.');
+          const mode = Object.values(MODE).includes(message.mode) ? message.mode : MODE.FULL;
+          sendResponse(await startCapture(mode));
           break;
         }
 
