@@ -497,13 +497,14 @@ To produce an upload package:
 
 ```bash
 cd fullshot
-zip -r ../fullshot-1.0.0.zip . -x '*.DS_Store' 'test/*' '*.zip'
+zip -r ../fullshot-1.1.0.zip . -x '*.DS_Store' 'test/*' '*.zip'
 ```
 
 Before submitting to the Chrome Web Store:
 
 1. Confirm `DEBUG = false`.
-2. Bump `version` in `manifest.json`.
+2. Bump `version` in `manifest.json` and add the entry to
+   [`CHANGELOG.md`](CHANGELOG.md).
 3. Exclude `test/`, as above.
 4. In the listing, justify each permission with the table in this README —
    `activeTab` plus `scripting` is a straightforward story, which is exactly why

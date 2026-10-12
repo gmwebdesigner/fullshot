@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "FullShot",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Fast, private full-page screenshots. Capture, annotate and share — everything stays on your machine.",
   "minimum_chrome_version": "109",
 
