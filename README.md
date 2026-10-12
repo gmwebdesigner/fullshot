@@ -267,7 +267,10 @@ shows it in every section.
 3. From the second tile on: `fixed` → `visibility: hidden`, `sticky` →
    `position: static`. `visibility` is used rather than `display` because it
    does not reflow the page and invalidate the measurements.
-4. Restore the exact original inline styles in a `finally` — on success, on
+4. Repeat the scan at every later scroll stop. Many headers only turn fixed
+   once the page has moved (Google's results bar, any "shrink on scroll"
+   navbar), so they are not fixed yet when the first scan runs.
+5. Restore the exact original inline styles in a `finally` — on success, on
    error, and on cancel.
 
 One deliberate exception: a fixed element covering ≥85% of the viewport is a
@@ -447,6 +450,7 @@ PASS  cookie banner appears once              [[517,116]]
 PASS  both sit inside the first viewport      vh=657
 PASS  sticky header appears only at the top   nav-text bands at y=[[23,9]]
 PASS  shadow-DOM widget appears once          [[329,56]]
+PASS  bar that turns fixed mid-scroll never appears   []
 PASS  footer reaches the bottom of the image
 ```
 

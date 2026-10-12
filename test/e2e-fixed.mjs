@@ -87,13 +87,14 @@ try {
        //  navText   dark pixels in the far right column ON A LIGHT ROW, which on
        //            this page only ever come from the sticky header's nav links
        //  shadow    the magenta widget living in an open shadow root
-       const rowsGreen = [], rowsCookie = [], rowsFooter = [], rowsNav = [], rowsShadow = [];
+       const rowsGreen = [], rowsCookie = [], rowsFooter = [], rowsNav = [], rowsShadow = [], rowsLate = [];
        for (let y = 0; y < bmp.height; y += 1) {
-         let green = 0, magenta = 0, wide = 0, run = 0, bestRun = 0, rightDark = 0, luma = 0, n = 0;
+         let green = 0, magenta = 0, cyan = 0, wide = 0, run = 0, bestRun = 0, rightDark = 0, luma = 0, n = 0;
          for (let x = 0; x < bmp.width; x += 4) {
            const i = (y * bmp.width + x) * 4;
            if (near(i, 22, 163, 74, 12)) green += 1;
            if (near(i, 255, 0, 255, 12)) magenta += 1;
+           if (near(i, 0, 255, 255, 12)) cyan += 1;
            const dark = near(i, 24, 24, 27, 6);
            if (dark) {
              wide += 1;
@@ -108,6 +109,7 @@ try {
          const samples = bmp.width / 4;
          if (green > 3) rowsGreen.push(y);
          if (magenta > 3) rowsShadow.push(y);
+         if (cyan > 3) rowsLate.push(y);
          if (bestRun * 4 > 200 && wide < samples * 0.5) rowsCookie.push(y);
          if (wide > samples * 0.8) rowsFooter.push(y);
          if (rightDark > 0 && luma / n > 200) rowsNav.push(y);
@@ -138,7 +140,7 @@ try {
        return {
          width: bmp.width, height: bmp.height, scale, tiles: rec.tiles,
          green: bands(rowsGreen), cookie: bands(rowsCookie, 40),
-         footer: bands(rowsFooter), nav: bands(rowsNav), shadow: bands(rowsShadow),
+         footer: bands(rowsFooter), nav: bands(rowsNav), shadow: bands(rowsShadow), late: bands(rowsLate),
          crops: {
            top: await crop(0, Math.min(900, bmp.height), 700),
            mid: await crop(Math.round(bmp.height * 0.42), 900, 700),
@@ -177,6 +179,11 @@ try {
     'shadow-DOM widget appears once',
     report.shadow.length === 1 && report.shadow[0][0] < metrics.vh,
     JSON.stringify(report.shadow)
+  );
+  check(
+    'bar that turns fixed mid-scroll never appears',
+    report.late.length === 0,
+    JSON.stringify(report.late)
   );
   check(
     'footer reaches the bottom of the image',

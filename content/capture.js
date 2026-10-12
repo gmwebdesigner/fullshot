@@ -188,6 +188,19 @@
         if (index === 0) await utils.primeLazyMedia();
         if (cancelled) break;
 
+        // Plenty of headers only turn fixed once the page has scrolled (Google's
+        // results bar, every "shrink on scroll" navbar), so the scan made at
+        // the top never saw them. Look again at every stop. Elements already
+        // neutralised no longer compute as fixed or sticky, so this only ever
+        // returns newcomers.
+        if (index > 0 && fixedEntries) {
+          const late = fixedElements.collect();
+          if (late.length) {
+            fixedElements.neutralise(late);
+            fixedEntries.push(...late);
+          }
+        }
+
         // Where the browser actually landed. Near the bottom it clamps the
         // scroll, which is exactly the case that produces duplicated tails in
         // naive tools; `cropTop` absorbs it. `destY` covers the opposite, rarer

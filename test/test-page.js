@@ -50,3 +50,15 @@ document.body.appendChild(shadowHost);
 shadowHost.attachShadow({ mode: 'open' }).innerHTML =
   '<div style="position:fixed;left:24px;top:50%;width:56px;height:56px;' +
   'border-radius:16px;background:#ff00ff;z-index:70"></div>';
+
+// A bar that only becomes fixed once the page has been scrolled — Google's
+// results header, most "shrink on scroll" navbars. It is not fixed when the
+// capture starts, so a single scan up front never sees it. It must not appear
+// in the image at all: it never belonged to any one place in the document.
+const lateBar = document.createElement('div');
+lateBar.style.cssText =
+  'display:none;position:fixed;top:0;left:0;right:0;height:48px;background:#00ffff;z-index:80';
+document.body.appendChild(lateBar);
+addEventListener('scroll', () => {
+  lateBar.style.display = scrollY > 1500 ? 'block' : 'none';
+});
