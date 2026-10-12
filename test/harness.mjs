@@ -279,7 +279,7 @@ export function cleanDownloads(keepIn = null) {
   try {
     const downloads = path.join(os.homedir(), 'Downloads');
     for (const name of fs.readdirSync(downloads)) {
-      if (/^fullshot-127-0-0-1-.*\.(jpg|png|pdf)$/.test(name)) {
+      if (/^fullshot-127-0-0-1-.*\.(jpg|webp|png|pdf)$/.test(name)) {
         const file = path.join(downloads, name);
         if (keepIn) {
           fs.mkdirSync(keepIn, { recursive: true });

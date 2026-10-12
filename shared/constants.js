@@ -34,6 +34,7 @@ export const MODE = {
 export const FORMAT = {
   PNG: 'png',
   JPG: 'jpg',
+  WEBP: 'webp',
   PDF: 'pdf'
 };
 

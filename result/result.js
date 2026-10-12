@@ -264,7 +264,7 @@ async function compose({ format, quality, footer, pdfMode }) {
 
   if (!canvas) {
     if (format === FORMAT.PNG) return state.sourceBlob;
-    // JPG still has to go through a canvas, even with nothing drawn on top.
+    // JPG and WebP still have to go through a canvas, even with nothing drawn on top.
     const plain = bareCanvas();
     try {
       return await encode(plain, format, quality);
@@ -292,13 +292,21 @@ function bareCanvas() {
   return canvas;
 }
 
+const MIME = { [FORMAT.JPG]: 'image/jpeg', [FORMAT.WEBP]: 'image/webp' };
+
+/** WebP's format limit. Chrome squashes anything bigger to fit, without a word. */
+const WEBP_MAX_SIDE = 16383;
+
 function encode(canvas, format, quality) {
-  const mime = format === FORMAT.JPG ? 'image/jpeg' : 'image/png';
+  const mime = MIME[format] || 'image/png';
+  if (format === FORMAT.WEBP && Math.max(canvas.width, canvas.height) > WEBP_MAX_SIDE) {
+    return Promise.reject(new Error('This image is too large for WebP. Use PNG or JPG.'));
+  }
   return new Promise((resolve, reject) => {
     canvas.toBlob(
       (result) => (result ? resolve(result) : reject(new Error('The image could not be encoded.'))),
       mime,
-      format === FORMAT.JPG ? quality / 100 : undefined
+      mime === 'image/png' ? undefined : quality / 100
     );
   });
 }
@@ -374,7 +382,7 @@ for (const button of document.querySelectorAll('.seg[data-format]')) {
       other.classList.toggle('is-active', active);
       other.setAttribute('aria-checked', String(active));
     }
-    // Quality drives the JPEG encoder, and PDF pages are JPEG too.
+    // Quality drives the JPEG and WebP encoders, and PDF pages are JPEG too.
     $('quality-field').hidden = state.format === FORMAT.PNG;
     $('pdf-field').hidden = state.format !== FORMAT.PDF;
     $('copy').disabled = state.format === FORMAT.PDF;

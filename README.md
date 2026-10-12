@@ -90,6 +90,9 @@ checkbox, or *Client footer by default* in Settings).
 
 - **PNG** — lossless, the default
 - **JPG** — 70 / 80 / 90 / 100%
+- **WebP** — same quality steps, typically half the size of the equivalent JPG.
+  WebP stops at 16 383 px a side, so the tallest captures must use PNG or JPG;
+  FullShot says so instead of letting Chrome silently squash the image to fit
 - **PDF** — one page as tall as the screenshot, or as many A4 pages as it takes
 - **Copy image** — PNG to the clipboard
 - **Download** — through `chrome.downloads`, named from your template
@@ -414,6 +417,7 @@ PASS  result page renders the capture
 PASS  annotated JPG export downloads                         Saved · 121.9 KB
 PASS  PDF export (single) downloads                          Saved · 122.7 KB
 PASS  PDF export (a4) downloads                              Saved · 128.7 KB
+PASS  WebP export downloads a real WebP        Saved · 53.2 KB  magic=RIFF/WEBP
 PASS  visible area capture completes
 PASS  visible capture equals one viewport                    {"h":557,"tiles":1}
 PASS  switching tab mid-capture aborts the run

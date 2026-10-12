@@ -10,6 +10,7 @@
  *   HEADED=1 node test/e2e-stitch.mjs
  */
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import {
   sleep, requireChrome, prepareExtension, serve, launchChrome, connect, evaluate,
@@ -244,6 +245,38 @@ try {
       JSON.stringify(pdfs[label])
     );
   }
+
+  // WebP: a "Saved" status only says a download started. The file's magic
+  // bytes say it is actually WebP.
+  const webp = await evaluate(
+    resultClient,
+    `(async () => {
+       document.querySelector('.seg[data-format="webp"]').click();
+       document.getElementById('status').textContent = '';
+       document.getElementById('download').click();
+       for (let i = 0; i < 80; i += 1) {
+         await new Promise((done) => setTimeout(done, 250));
+         const status = document.getElementById('status');
+         if (status.textContent && status.textContent !== 'Preparing…') {
+           return { status: status.textContent, tone: status.dataset.tone || '' };
+         }
+       }
+       return { status: 'timeout', tone: 'error' };
+     })()`
+  );
+  let webpMagic = '';
+  for (let i = 0; i < 20 && !webpMagic; i += 1) {
+    await sleep(250);
+    const dir = path.join(os.homedir(), 'Downloads');
+    const name = fs.readdirSync(dir).find((n) => /^fullshot-127-0-0-1-.*\.webp$/.test(n));
+    const bytes = name ? fs.readFileSync(path.join(dir, name)) : null;
+    if (bytes?.length >= 12) webpMagic = `${bytes.toString('latin1', 0, 4)}/${bytes.toString('latin1', 8, 12)}`;
+  }
+  check(
+    'WebP export downloads a real WebP',
+    webp.status.startsWith('Saved') && webpMagic === 'RIFF/WEBP',
+    `${JSON.stringify(webp)} magic=${webpMagic || 'none'}`
+  );
 
   const preview = await evaluate(
     resultClient,
